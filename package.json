@@ -1,0 +1,24 @@
+{
+  "name": "char-server",
+  "version": "1.0.0",
+  "description": "TypeScript project with Fastify, SQLite, and dotenv",
+  "main": "dist/server.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/server.js",
+    "dev": "ts-node src/server.ts",
+    "prod": "cross-env NODE_ENV=production ts-node src/server.ts"
+  },
+  "dependencies": {
+    "better-sqlite3": "^9.4.3",
+    "dotenv": "^16.4.5",
+    "fastify": "^4.26.2",
+    "ethers": "^6.12.1"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.9",
+    "@types/node": "^20.11.24",
+    "ts-node-dev": "^2.0.0",
+    "typescript": "^5.3.3"
+  }
+} 
