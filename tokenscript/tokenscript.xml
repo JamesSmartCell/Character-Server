@@ -15,13 +15,13 @@
 	</ts:label>
 	<ts:meta>
         <ts:description xml:lang="en">Cross platform AI Agents with learning</ts:description>
-        <ts:aboutUrl xml:lang="en">https://viewer.smartlayer.network/?chain=84532&amp;contract=0xB7C31C0731DE35e1c2577Cde493D94ca453eA4DF</ts:aboutUrl>
+        <ts:aboutUrl xml:lang="en">https://viewer.smartlayer.network/?chain=84532&amp;contract=0x0D8Df2b4fffA60E342ed6bE6501C6453FF770486</ts:aboutUrl>
         <ts:iconUrl xml:lang="en">https://pub-17883891749c4dd484fccf6780697b62.r2.dev/metadata/0x2214739c24621d0f2d8e120a4ebd2b8ab188d5dc1db4b181535706779a1a239d.jpg</ts:iconUrl>
     </ts:meta>
 
 	<ts:contract interface="erc721" name="thistoken">
-		<ts:address network="84532">0xB7C31C0731DE35e1c2577Cde493D94ca453eA4DF</ts:address>
-		<!-- <ts:address network="8453">0xB7C31C0731DE35e1c2577Cde493D94ca453eA4DF</ts:address> -->
+		<ts:address network="84532">0x0D8Df2b4fffA60E342ed6bE6501C6453FF770486</ts:address>
+		<!-- <ts:address network="8453">0x0D8Df2b4fffA60E342ed6bE6501C6453FF770486</ts:address> -->
 
 		<ts:abi>
 			<![CDATA[

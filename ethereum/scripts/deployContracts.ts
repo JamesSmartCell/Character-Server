@@ -53,14 +53,14 @@ async function main() {
     const AIToken = await ethers.getContractFactory("AgentToken");
 
     //Deploy
-    //const aiToken = await upgrades.deployProxy(AIToken.connect(primaryDeployKey), ["Agents of Advocacy", "AoA", tokenAddress], { kind: 'uups' });
-    //await aiToken.waitForDeployment();
+    const aiToken = await upgrades.deployProxy(AIToken.connect(primaryDeployKey), ["Agents of Advocacy", "AoA", tokenAddress], { kind: 'uups' });
+    await aiToken.waitForDeployment();
     //wait 5 seconds
-    //await new Promise(resolve => setTimeout(resolve, 5000));
+    await new Promise(resolve => setTimeout(resolve, 5000));
 
 
     //connect to the existing contract
-    const aiToken = AIToken.attach(contractAddress);
+    //const aiToken = AIToken.attach(contractAddress);
 
 
     console.log(`AIToken: ${aiToken.target}`);
@@ -70,7 +70,7 @@ async function main() {
     // Verify the contract on Etherscan
     await hre.run("verify:verify", {
         address: aiToken.target,
-        constructorArguments: [],
+        constructorArguments: ["Agents of Advocacy", "AoA", tokenAddress],
     });
 
     //wait 5 seconds
