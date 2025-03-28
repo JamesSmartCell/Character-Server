@@ -8,6 +8,13 @@ type CharacterStructure = {
     character_data: JSON;
     created_at: string;
     updated_at: string;
+    character_metadata: JSON;
+}
+
+type CharacterMetadataStructure = {
+    name: string;
+    description: string;
+    attributes: JSON;
 }
 
 export class SQLiteDatabase {
@@ -26,7 +33,8 @@ export class SQLiteDatabase {
                 name TEXT NOT NULL,
                 character_data TEXT,
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                character_metadata TEXT
                 );
             `);
 
@@ -52,6 +60,25 @@ export class SQLiteDatabase {
         }
     }
 
+    async insertMetadata(tokenId: number, name: string, character_metadata: JSON) {
+        consoleLog(`tokenId: ${tokenId}, name: ${name}, character_metadata: '${JSON.stringify(character_metadata)}'`);
+        //get the entry from the characters table
+        const character = this.db.prepare('SELECT * FROM characters WHERE token_id = ?').get(tokenId);
+
+        if (!character) {
+            console.error("Character not found");
+            return;
+        }
+
+        //update the character_metadata field
+        const stmt = this.db.prepare(`
+            UPDATE characters 
+            SET character_metadata = ? 
+            WHERE token_id = ?
+        `);
+        stmt.run(JSON.stringify(character_metadata), tokenId);
+    }
+
     //function to get a character from the database
     // args are numeric tokenId, should return the character data as JSON
     async getCharacter(tokenId: number) {
@@ -64,6 +91,33 @@ export class SQLiteDatabase {
             //consoleLog(`character.character_data: ${character.character_data}`);
             return JSON.parse(character.character_data as unknown as string);
         }
+    }
+
+    async getCharacterMetadata(tokenId: number) {
+        const stmt = this.db.prepare('SELECT * FROM characters WHERE token_id = ?');
+        const character: CharacterStructure = stmt.get(tokenId) as CharacterStructure;
+        if (!character) {
+            return null;
+        } else {
+            //convert character_metadata to JSON
+            //consoleLog(`character.character_metadata: ${character.character_metadata}`);
+            return JSON.parse(character.character_metadata as unknown as string);
+        }
+    }
+
+    async getCharacterOverview(tokenId: number) {
+        const stmt = this.db.prepare('SELECT * FROM characters WHERE token_id = ?');
+        const character: CharacterStructure = stmt.get(tokenId) as CharacterStructure;
+        if (!character) {
+            return null;
+        }
+
+        const overview = {
+            name: character.name,
+            //@ts-ignore
+            description: character.character_data.description,
+        }
+        return overview;
     }
 
     //function to update a character in the database
