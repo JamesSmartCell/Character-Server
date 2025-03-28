@@ -25,7 +25,7 @@ function formParams(prompt: string, model_name: string, sampler_name: string): a
 }
 
 export async function generateImage(prompt: string, model_name: string, sampler_name: string, onFinish: (images: string) => void) {
-    const params = formParams(prompt, model_name, sampler_name);
+    const params = formParams(prompt, model_name, sampler_name); 
 
     novitaClient.txt2Img(params)
         .then((res: any) => {
