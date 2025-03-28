@@ -1,0 +1,674 @@
+<style type="text/css">
+    body {
+        font-family: Arial, sans-serif;
+        /* Use a nicer font for the entire page */
+        margin: 0;
+        padding: 20px;
+        background-color: #f0f0f0;
+        /* Light background for better contrast */
+        display: flex;
+        flex-direction: column;
+        /* Stack elements vertically */
+        align-items: center;
+        /* Center elements horizontally */
+    }
+
+    table {
+        width: 100%;
+        /* Full width for the table */
+        margin-top: 20px;
+        /* Space above the table */
+        border-collapse: collapse;
+        /* Collapse borders */
+    }
+
+    td {
+        padding: 5px;
+        /* Padding for table cells */
+    }
+
+    #message {
+        width: 100%;
+        /* Full width for the input box */
+        padding: 10px 0px 10px 2px;
+        font-size: 16px;
+        /* Nicer font size */
+        border: 1px solid #ccc;
+        border-radius: 5px;
+    }
+
+    .create-button {
+        padding: 10px;
+        /* Add padding for space around the text */
+        font-size: 16px;
+        color: white;
+        background-color: blue;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        width: auto;
+        /* Set width to auto to fit the text */
+        transition: background-color 0.3s;
+        /* Smooth transition for hover effect */
+    }
+
+    .create-button:hover {
+        background-color: darkblue;
+        /* Change button color on hover */
+    }
+
+    h1 {
+        color: #333;
+        /* Darker color for the heading */
+        text-align: center;
+        /* Center the heading */
+        margin-bottom: 20px;
+        /* Space below the heading */
+    }
+
+    #output-area {
+        margin-top: 20px;
+        /* Space above output area */
+        text-align: center;
+        /* Center the output area text */
+    }
+
+    /* create a mint fee div */
+    #mint-fee {
+        margin-top: 20px;
+        /* Space above mint fee */
+        text-align: center;
+        /* Center the mint fee text */
+    }
+
+    .link-container {
+        margin-top: 10px;
+        display: inline-block;
+        /* Make the container fit the content */
+        background-color: white;
+        /* Darker background color */
+        color: black;
+        padding: 10px 20px;
+        /* Padding for the lozenge */
+        border: 2px solid #333;
+        /* 2px border */
+        border-radius: 20px;
+        /* Rounded corners for the lozenge effect */
+        text-align: center;
+        /* Center the text */
+        width: 90%;
+    }
+
+    .link-container a {
+        color: blue;
+        /* Link color */
+        margin: 0 10px;
+        /* Space between links */
+        font-size: 16px;
+    }
+
+    .link-container a:hover {
+        text-decoration: underline;
+        /* Underline on hover */
+    }
+
+    .copy-button {
+        margin-left: 8px;
+        /* Space between link and button */
+        background: none;
+        /* Remove background */
+        border: none;
+        /* Remove border */
+        cursor: pointer;
+        /* Pointer cursor on hover */
+        padding: 0;
+        /* Remove padding */
+    }
+
+    .copy-button svg {
+        width: 24px;
+        /* Set the size of the SVG */
+        height: 24px;
+        /* Set the size of the SVG */
+        fill: #000;
+        /* Set the color of the SVG */
+        vertical-align: middle;
+    }
+
+    .copy-button:hover svg {
+        fill: #007bff;
+        /* Change color on hover */
+    }
+
+    .spinner {
+        border: 8px solid rgba(255, 255, 255, 0.3);
+        /* Light color for the spinner */
+        border-top: 8px solid blue;
+        /* Change this color to customize the spinner color */
+        border-radius: 50%;
+        width: 50px;
+        /* Size of the spinner */
+        height: 50px;
+        /* Size of the spinner */
+        animation: spin 1s linear infinite;
+        /* Animation for spinning effect */
+        position: absolute;
+        /* Positioning */
+        /* Removed top and left properties */
+    }
+
+    @keyframes spin {
+        0% {
+            transform: rotate(0deg);
+        }
+
+        100% {
+            transform: rotate(360deg);
+        }
+    }
+</style>
+
+<body>
+    <div id="title-container">
+        <h1>Create a new NFT</h1>
+    </div>
+    <div id="mint-fee"></div>
+    <div id="spinner" class="spinner" style="display: none;"></div>
+    <table>
+        <tr>
+            <td>
+                <div id="itemSelectorContainer" style="display: flex; flex-direction: column; align-items: flex-start;">
+                    <div style="display: flex; justify-content: space-between; width: 100%; align-items: center;">
+                        <button id="create-button" class="create-button">Sign Challenge</button>
+                        <button id="approve-button" class="create-button" style="display: none;">Approve</button>
+                    </div>
+                </div>
+            </td>
+        </tr>
+    </table>
+    <div id="large-image-container" style="display: none;">
+        <img id="large-image"
+            style="width: 95%; display: block; margin: auto; border: 4px solid blue; border-radius: 10px;" />
+    </div>
+    <div class="link-container" id="link-container-div" style="display: none;">
+        <a href="https://some-link.com/tokenId=1" target="_blank" id="link-to-copy">https://some-link.com/tokenId=1</a>
+        <button id="copy-button" class="copy-button" onclick="copyToClipboard()">
+            <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" fill="#000000"
+                version="1.1" id="Layer_1" width="24px" height="24px" viewBox="0 0 100 100"
+                enable-background="new 0 0 100 100" xml:space="preserve">
+                <g>
+                    <path
+                        d="M78.746,33.028L61.62,17.213c-0.368-0.336-0.85-0.713-1.349-0.713H42.634c-5.407,0-9.134,2.81-9.134,6.877V28.5h-3.358 c-4.946,0-8.642,3.124-8.642,7.369V75.87c0,4.492,4.077,7.63,8.642,7.63h29.231c4.677,0,8.127-3.288,8.127-7.63V71.5h4.365 c4.41,0,7.635-3.513,7.635-8.122V35.055c0-0.029,0.242-0.057,0.241-0.085c0.001-0.03,0.134-0.059,0.134-0.089 C79.875,34.041,79.48,33.324,78.746,33.028z M61.5,23.165L72.649,32.5H61.5V23.165z M63.5,75.87c0,2.363-1.938,3.63-4.127,3.63 H30.142c-2.323,0-4.642-1.381-4.642-3.63V35.869c0-2.6,3.095-3.369,4.642-3.369H45.5v15.381c0,1.104,1.396,1.619,2.5,1.619h15.5 V75.87z M61.216,45.5H49.5v-9.878L61.216,45.5z M71.865,67.5H67.5V47.547c0-0.562,0.014-1.097-0.4-1.476l-17.43-16.059 c-0.324-0.667-0.94-1.132-1.732-1.132c-0.036,0-0.039-0.182-0.075-0.18c-0.038-0.002-0.044-0.201-0.083-0.201H37.5v-5.123 c0-2.063,3.02-2.877,5.134-2.877H57.5v14.381c0,1.104,1.396,1.619,2.5,1.619h15.5v26.878C75.5,65.776,74.068,67.5,71.865,67.5z" />
+                </g>
+            </svg>
+            <span class="tooltip">Copy to clipboard</span>
+        </button>
+        <button class="copy-button" id="reset-button" onclick="resetStatus()" title="Reset Card">
+            <svg version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" fill="#000000"
+                xmlns:xlink="http://www.w3.org/1999/xlink" width="24px" height="24px" x="0px" y="0px"
+                viewBox="0 0 512 512" style="enable-background:new 0 0 512 512;" xml:space="preserve">
+                <g>
+                    <path
+                        d="M256,76.8V128c-70.7-0.1-128.1,57.1-128.2,127.8c-0.1,34.1,13.5,66.8,37.6,90.9l-36.1,36.1c-70-70-70-183.5,0-253.4C162.9,95.7,208.5,76.8,256,76.8z M382.7,129.3c70,70,70,183.5,0,253.4c-33.6,33.6-79.2,52.5-126.7,52.5V384c70.7,0.1,128.1-57.1,128.2-127.8c0.1-34.1-13.5-66.8-37.6-90.9L382.7,129.3z M256,512L153.6,409.6L256,307.2V512z M256,204.8V0l102.4,102.4L256,204.8z" />
+                </g>
+            </svg>
+        </button>
+    </div>
+
+    <br></br>
+    <div id="status"></div>
+
+    <div id="output-area">
+        <h2>Now mint new NFT using the button below</h2>
+    </div>
+
+</body>
+<script type="text/javascript">
+
+    //<span class="tooltip">Copy to clipboard</span>
+    const serverAddr = `http://192.168.50.206:8081`;
+    //const serverAddr = `https://3-88-107-72.sslip.io:8443`;
+    //const serverAddr = `https://40-76-112-104.sslip.io:8081`;
+    const createButton = document.getElementById('create-button');
+    const paymentTokenAddress = chainID === "84532" ? "0x8b0fefd94667fdd8cef52f8c1eeb5baec8d64a00" : "0xEf0b105b4F2cE61D2A7Ae62D03B1f4cB6C4fbEec";
+    let isMinting = false;
+
+    let uid = "";
+    let currentChallenge = "";
+    //use ethers to convert 0.001 eth to WEI
+    let mintFee = ethers.parseEther('0.001');
+
+    function onSignChallengeClick() {
+        //const prompt = document.getElementById('message').value;
+        const prompt = `New Agent ${Math.floor(Math.random() * 1000000)}`;
+        document.getElementById('status').innerHTML = 'Sign challenge in wallet...';
+        web3.personal.sign({ data: currentChallenge + prompt }, function (error, value) {
+            if (error != null) {
+                document.getElementById('status').innerHTML = extractMessage(error);
+                displayResetOnly();
+            }
+            else {
+
+                document.getElementById('status').innerHTML = 'Verifying credentials ...';
+
+                const payload = {
+                    signature: value,
+                    prompt,
+                    challenge: currentChallenge,
+                    chainId: chainID.toString(),
+                    derivative: "0",
+                    style: "New Agent",
+                    contract: currentTokenInstance.contractAddress
+                };
+
+                fetch(`${serverAddr}/createmint`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(payload)
+                })
+                    .then(response => {
+                        if (!response.ok) {
+                            document.getElementById('status').innerHTML = `Error: Signature verification failed. Please try again...`;
+                            throw new Error('Network response was not ok');
+                            displayResetOnly();
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        console.log(`FEED ${JSON.stringify(data)} ${data}`);
+                        console.log('Success:', data);
+                        console.log(`Received Hash: ${data.data}`);
+                        // only add first 20 digits of the hash
+                        document.getElementById('status').innerHTML = 'Status: NFT minting pending, click Mint action button to proceed';
+                        //populate the video box
+                        document.getElementById('create-button').style.display = 'none';
+                        document.getElementById('itemSelectorContainer').style.display = 'none';
+
+                        //reveal the output area
+                        document.getElementById('output-area').style.display = 'block';
+
+                        uid = data.data;
+
+                        //now populate the required TokenScript fields
+                        web3.action.setProps({
+                            tokenHash: data.data,
+                            signature: value
+                        });
+
+                        isMinting = true;
+                    })
+                    .catch(error => {
+                        document.getElementById('status').innerHTML = `Error: Signature verification failed. Please try again...`;
+                        displayResetOnly();
+                        console.error('Error:', error);
+                    });
+            }
+        });
+    }
+
+    // Assign the click event to the button
+    document.getElementById('create-button').addEventListener('click', onSignChallengeClick);
+
+    function handleErrors(response) {
+        if (!response.ok) {
+            document.getElementById('status').innerHTML = `Error: Server offline; unable to get challenge...`;
+            throw Error(response.statusText);
+        }
+        return response.text();
+    }
+
+    async function getChallenge() {
+        try {
+
+            fetch(`${serverAddr}/challenge`)
+                .then(handleErrors)
+                .then(function (response) {
+                    const JSONData = JSON.parse(response);
+                    window.challenge = JSONData.data
+                    currentChallenge = JSONData.data
+                })
+                .then(checkPaymentTokenAllowance)
+                .then(function (response) {
+                    if (response) {
+                        createButtonReady();
+                    } else {
+                        document.getElementById('status').innerHTML = `Insufficient allowance for payment token. Please approve the payment token...`;
+                        //enable the approve button
+                        document.getElementById('approve-button').style.display = 'block';
+                        //hide the create button
+                        document.getElementById('create-button').style.display = 'none';
+                        //add listener to the approve button
+                        document.getElementById('approve-button').addEventListener('click', approvePaymentToken);
+                    }
+                });
+        } catch (error) {
+            console.error("Error fetching listings:", error);
+            return null;
+        }
+    }
+
+    function changeButtonColor(color) {
+        createButton.style.backgroundColor = color;
+    }
+
+    // Global variable to store the selected item
+    let selectedItem = 1;
+
+    // Function to update the global variable when the selection changes
+    function updateSelectedItem() {
+        const selector = document.getElementById('itemSelector');
+        selectedItem = selector.value; // Set the global variable to the selected value
+    }
+
+    function setMintFee() {
+        mintFee = currentTokenInstance.tokenMintFee;
+        const tokenSymbol = currentTokenInstance.tokenSymbol != null && currentTokenInstance.tokenSymbol != "" ? currentTokenInstance.tokenSymbol : "SLN";
+        document.getElementById('mint-fee').innerHTML = `Mint fee: ${ethers.formatEther(currentTokenInstance.tokenMintFee)} ${tokenSymbol}`;
+    }
+
+    const provider = new ethers.JsonRpcProvider(rpcURL, {
+        chainId: Number(chainID),
+        name: 'anychain'
+    });
+
+    const totalSupplyQuery = new ethers.Contract(currentTokenInstance.contractAddress, [
+        "function totalSupply() public view returns (uint256)"
+    ], provider);
+
+    const approvePayment = new ethers.Contract(paymentTokenAddress, [
+        "function approve(address spender, uint256 amount) public returns (bool)",
+        "function allowance(address owner, address spender) public view returns (uint256)",
+        "function balanceOf(address owner) public view returns (uint256)"
+    ], provider);
+
+    async function checkPaymentTokenAllowance() {
+        const allowance = await approvePayment.allowance(currentTokenInstance.ownerAddress, currentTokenInstance.contractAddress);
+        console.log(`Allowance: ${allowance}`);
+        return allowance >= mintFee;
+    }
+
+    async function approvePaymentToken() {
+        let approveAmt = mintFee * 10;
+        let approveAmtString = approveAmt.toString();
+        tokenscript.action.setProps({ approveAmt: approveAmtString });
+        if (!await tokenscript.action.executeTransaction("approvePayToken")) {
+            return;
+        }
+        //hide the approve button
+        document.getElementById('approve-button').style.display = 'none';
+        //show the create button
+        document.getElementById('create-button').style.display = 'block';
+    }
+
+    tokenscript.on("TRANSACTION_EVENT", async (txStatus) => {
+        console.log(`TRANSACTION_EVENT: ${JSON.stringify(txStatus)}`);
+
+        //need to adapt this to detect if it's the approve transaction or the mint transaction
+        if (txStatus.status === "started") {
+            if (isMinting) {
+                //hide mint fee
+                document.getElementById('mint-fee').style.display = 'none';
+                //hide output-area
+                document.getElementById('output-area').style.display = 'none';
+                //hide the message and create button
+                document.getElementById('status').innerHTML = 'Status: Confirm mint transaction in wallet';
+                document.getElementById('create-button').style.display = 'none';
+
+                //hide the input box
+                //document.getElementById('message').style.display = 'none';
+                //showSpinner('blue'); //wait for image to be ready
+                // get the tokenCount
+                nextTokenId = (await totalSupplyQuery.totalSupply()) + 1n;
+            } else {
+                // we are waiting for the approve transaction to complete
+                document.getElementById('status').innerHTML = 'Status: Wait for approve transaction to complete...';
+                //hide approve button
+                document.getElementById('approve-button').style.display = 'none';
+            }
+        }
+
+        if (txStatus.status === "submitted") {
+            document.getElementById('status').innerHTML = 'Status: Wait for transaction confirmation...';
+        }
+
+        if (txStatus.status === "confirmed") {
+            if (isMinting) {
+                document.getElementById('status').innerHTML = 'Status: Wait for transaction to complete...';
+                setLinkAddress(`https://viewer.smartlayer.network/?chain=${chainID}&contract=${currentTokenInstance.contractAddress}&tokenId=${nextTokenId}`);
+            } else {
+                document.getElementById('status').innerHTML = 'Status: Wait for approve transaction to complete...';
+            }
+        }
+
+        if (txStatus.status === "completed") {
+            if (isMinting) {
+                document.getElementById('status').innerHTML = 'Status: Transaction completed, wait for character generation...';
+                showSpinner('blue'); //wait for image to be ready
+                pollForDetails();
+                //pollForImage();
+            } else {
+                createButtonReady();
+            }
+        }
+    });
+
+    function createButtonReady() {
+        document.getElementById('create-button').style.display = 'block';
+        //document.getElementById('status').innerHTML = 'Status: Waiting for prompt, type image prompt and click create';
+        document.getElementById('status').innerHTML = 'Status: Waiting for Signature Verification.';
+        document.getElementById('create-button').disabled = false;
+        changeButtonColor('blue');
+    }
+
+    async function pollForDetails() {
+        const thisTokenId = nextTokenId;
+        let pollCycle = 60;
+
+        //poll 2 second intervals for image to be ready
+        const interval = setInterval(async () => {
+            const response = await fetch(`${serverAddr}/characteroverview/${thisTokenId}`, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+            const data = await response.json();
+            if (data.data.name.length > 0) {
+                document.getElementById('status').style.display = 'none';
+                clearInterval(interval);
+                //receive the name and lore
+                const name = data.data.name;
+                const lore = data.data.lore;
+                //Lore is an array of strings, we need to join them with a new line
+                const loreString = lore.join('<br>- ');
+                //populate the title container
+                //name should be in bold
+                document.getElementById('title-container').innerHTML = `<h1>${name}</h1>`;
+                document.getElementById('mint-fee').style.display = 'block';
+                document.getElementById('mint-fee').innerHTML = `<br><br>- ${loreString}`;
+                document.getElementById('status').innerHTML = 'Waiting for image generation...';
+                //setImage(`${serverAddr}/image/${thisUid}`);
+                //hideSpinner();
+                //document.getElementById('title-container').style.display = 'none';
+                pollForImage();
+            }
+            if (pollCycle === 0) {
+                clearInterval(interval);
+                console.log(`POLL CYCLE EXPIRED: ${JSON.stringify(payload)}`);
+                document.getElementById('status').innerHTML = 'Image generation failed, please try again...';
+            }
+            pollCycle--;
+        }, 2000);
+    }
+
+    async function pollForImage() {
+        //poll /imageready endpoint for the image to be ready
+        const thisUid = uid;
+        const payload = {
+            tokenHash: `${thisUid}`
+        };
+
+        let pollCycle = 60;
+
+        //poll 2 second intervals for image to be ready
+        const interval = setInterval(async () => {
+            const response = await fetch(`${serverAddr}/metadataai/${nextTokenId}`, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+            if (response.ok) {
+                const data = await response.json();
+                console.log(`METADATA: ${JSON.stringify(data)}`);
+                // get imageurl from the metadata
+                const imageUrl = data.image;
+                document.getElementById('status').style.display = 'none';
+                clearInterval(interval);
+                setImage(`${imageUrl}`);
+                document.getElementById('mint-fee').style.display = 'none';
+                hideSpinner();
+                //document.getElementById('title-container').style.display = 'none';
+            }
+            if (pollCycle === 0) {
+                clearInterval(interval);
+                console.log(`POLL CYCLE EXPIRED: ${JSON.stringify(payload)}`);
+                document.getElementById('status').innerHTML = 'Image generation failed, please try again...';
+            }
+            pollCycle--;
+        }, 2000);
+    }
+
+    function setImage(url) {
+        //first clear the existing image
+        document.getElementById('large-image-container').style.display = 'block';
+        //set large-image to the received image
+        document.getElementById('large-image').src = url;
+    }
+
+    function showSpinner(color) {
+        const spinner = document.getElementById('spinner');
+        spinner.style.borderTopColor = color; // Change the spinner color
+        spinner.style.display = 'block'; // Show the spinner
+    }
+
+    function hideSpinner() {
+        const spinner = document.getElementById('spinner');
+        spinner.style.display = 'none'; // Hide the spinner
+    }
+
+    function setLinkAddress(linkUrl) {
+        //show the link container
+        document.getElementById('link-container-div').style.display = 'block';
+        document.getElementById('link-to-copy').href = linkUrl;
+        document.getElementById('link-to-copy').innerHTML = `Link to TokenScript`;
+        document.getElementById('reset-button').style.display = '';
+    }
+
+    function setTokenBridgeLink(linkUrl) {
+        //show the link container
+        document.getElementById('link-container-div').style.display = 'block';
+        document.getElementById('link-to-copy').href = linkUrl;
+        document.getElementById('link-to-copy').innerHTML = `Link to Token Bridge`;
+        document.getElementById('reset-button').style.display = '';
+    }
+
+    function displayResetOnly() {
+        document.getElementById('reset-button').style.display = '';
+        document.getElementById('link-container-div').style.display = 'block';
+        document.getElementById('link-to-copy').style.display = 'none';
+        document.getElementById('copy-button').style.display = 'none';
+    }
+
+    async function resetStatus() {
+        //call function
+        hideSpinner();
+
+        //to start with, we need to grey out the create button
+        document.getElementById('create-button').disabled = true;
+
+        document.getElementById('title-container').style.display = 'block';
+        document.getElementById('mint-fee').style.display = 'block';
+        document.getElementById('itemSelectorContainer').style.display = 'flex';
+        //document.getElementById('message').style.display = 'block';
+        document.getElementById('create-button').style.display = 'block';
+        //document.getElementById('create-button').style.display = 'none';
+        document.getElementById('status').style.display = 'block';
+
+        //hide the output-area
+        document.getElementById('output-area').style.display = 'none';
+        document.getElementById('large-image-container').style.display = 'none';
+        //hide link container
+        document.getElementById('link-container-div').style.display = 'none';
+        document.getElementById('status').innerHTML = 'Status: Waiting for challenge ...';
+
+        changeButtonColor('grey');
+
+        console.log(`Getting challenge`);
+
+        setMintFee();
+
+        isMinting = false;
+
+        try {
+            await getChallenge();
+            console.log(`Challenge fetched`);
+
+        } catch (error) {
+            console.log(`Owner error: ${error}`);
+            return false;
+        }
+    }
+
+    function copyToClipboard() {
+        const link = document.getElementById('link-to-copy').href; // Get the link URL
+        navigator.clipboard.writeText(link) // Copy the link to clipboard
+            .then(() => {
+                alert('Link copied to clipboard!'); // Optional: Show a success message
+            })
+            .catch(err => {
+                console.error('Failed to copy: ', err); // Handle errors
+            });
+    }
+
+    function extractMessage(response) {
+        const messageMatch = response.match(/"message":\s*"([^"]+)"/);
+
+        if (messageMatch) {
+            return messageMatch[1];
+        } else {
+            return "Error: Unknown error";
+        }
+    }
+
+    document.addEventListener("DOMContentLoaded", async function () {
+
+        // first check if we have sufficient token balance
+        console.log(`Checking balance: ${currentTokenInstance.ownerAddress} ${rpcURL} ${paymentTokenAddress}`);
+        console.log(`ChainID: ${chainID}`);
+        const balance = await approvePayment.balanceOf(currentTokenInstance.ownerAddress);
+        console.log(`Balance: ${balance}`);
+        if (balance < mintFee) {
+            document.getElementById('status').innerHTML = 'Status: Insufficient token balance, please purchase more tokens...';
+            //hide the create button
+            document.getElementById('create-button').style.display = 'none';
+            //hide the dropdown
+            document.getElementById('itemSelectorContainer').style.display = 'none';
+            //hide output-area
+            document.getElementById('output-area').style.display = 'none';
+            //hide large-image-container
+            document.getElementById('large-image-container').style.display = 'none';
+            console.log(`ChainID: ${chainID}`);
+            if (chainID === "8453") {
+                setTokenBridgeLink(`https://superbridge.app/base/sln`);
+            } else {
+                //testnet, redirect to AIT tokenscript
+                setTokenBridgeLink(`https://viewer.smartlayer.network/?chain=${chainID}&contract=${paymentTokenAddress}`);
+            }
+            return;
+        }
+        await resetStatus();
+    });
+</script>

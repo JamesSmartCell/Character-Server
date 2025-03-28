@@ -1,0 +1,290 @@
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        /* Simple CSS styling for the chat interface */
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            height: 100vh;
+            flex-direction: column;
+            margin: 0;
+        }
+        #chat {
+            flex-grow: 1;
+            overflow-y: auto;
+            padding: 10px;
+            border-bottom: 1px solid #ccc;
+        }
+        #input-area {
+            display: flex;
+            padding: 10px;
+        }
+        #message {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            margin-right: 10px;
+        }
+        #send {
+            padding: 10px 20px;
+            border: none;
+            background-color: #007BFF;
+            color: white;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .message {
+            margin: 5px 0;
+            padding: 10px;
+            border-radius: 5px;
+            width: fit-content;
+            max-width: 80%;
+        }
+        .incoming {
+            background-color: #f1f1f1;
+            align-self: flex-start;
+        }
+        .outgoing {
+            background-color: #007BFF;
+            color: white;
+            align-self: flex-end;
+        }
+
+        .button {
+        display: inline-block;
+        padding: 10px 20px;
+        font-size: 16px;
+        color: white;
+        background-color: blue;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        margin-top: 10px;
+    }
+
+    .button:hover {
+        background-color: darkblue;
+    }
+
+    /* Spinner styles */
+    .spinner-container {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(255, 255, 255, 0.8);
+        z-index: 1000;
+        justify-content: center;
+        align-items: center;
+    }
+
+    .spinner {
+        width: 50px;
+        height: 50px;
+        border: 5px solid #f3f3f3;
+        border-top: 5px solid #007BFF;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+    </style>
+</head>
+<body>
+    <div id="chat"></div>
+    <div id="verify">
+        <div id="challenge"></div>
+        <br></br>
+        <button class="button" id="signChallengeButton">Sign Challenge To Continue Chat</button>
+        <br></br>
+    </div>
+    <div id="input-area">
+        <input type="text" id="message" placeholder="Type a message..." />
+        <button id="send">Send</button>
+    </div>
+    <div id="spinner-container" class="spinner-container">
+        <div class="spinner"></div>
+    </div>
+</body>
+<script type="text/javascript">
+
+//const serverAddr = `https://40-76-112-104.sslip.io:8081`;
+const serverAddr = `http://192.168.50.206:8081`;
+let sessionToken = "";
+
+    function handleErrors(response) {
+        if (!response.ok) {
+            throw Error(response.statusText);
+        }
+        return response.text();
+    }
+
+    let currentChallenge = "";
+
+    function onSignChallengeClick() {
+        console.log("CLICK!");
+        if (currentChallenge.length == 0) {
+            return;
+        }
+
+        web3.personal.sign({ data: challenge }, function (error, value) {
+            if (error != null) {
+                document.getElementById('challenge').innerHTML = error
+            }
+            else {
+
+                document.getElementById('challenge').innerHTML = 'Verifying credentials ...'
+
+                const payload = {
+                    signature: value,
+                    tokenId: currentTokenInstance.tokenId.toString(),
+                    chainId: currentTokenInstance.chainId.toString(),
+                    contract: currentTokenInstance.contractAddress
+                };
+
+                fetch(`${serverAddr}/verify`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(payload)
+                })
+                    .then(response => {
+                        if (!response.ok) {
+                            // tell user they are not verified
+                            document.getElementById('challenge').innerHTML = 'You are not the owner of this token';
+                            throw new Error('Network response was not ok');
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        console.log(`FEED ${JSON.stringify(data)} ${data}`);
+                        console.log('Success:', data);
+                        console.log(`PASS: ${data.data} TOKEN: ${data.token}`);
+                        document.getElementById('verify').style.display = 'none';
+                        document.getElementById('input-area').style.display = 'flex';
+                        sessionToken = data.token;
+                        handleChatMessage("Hello, who are you and what is it you did? What kind of questions can you answer?");
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                    });
+            }
+        });
+    }
+
+    // Assign the click event to the button
+    document.getElementById('signChallengeButton').addEventListener('click', onSignChallengeClick);
+
+    async function getChallenge() {
+        console.log(`dump: ${document.getElementById('input-area').style.display}`);
+        document.getElementById('input-area').style.display = 'none';
+        //document.getElementById('input-area').style.visibility = 'gone';
+        try {
+
+            fetch(`${serverAddr}/challenge`)
+                .then(handleErrors)
+                .then(function (response) {
+                    const JSONData = JSON.parse(response);
+                    document.getElementById('challenge').innerHTML = `Challenge: ${JSONData.data}`;// + response.data
+                    window.challenge = JSONData.data
+                    currentChallenge = JSONData.data
+                    changeButtonColor('blue');
+
+                })
+
+        } catch (error) {
+            console.error("Error fetching listings:", error);
+            return null;
+        }
+    }
+
+    function changeButtonColor(color) {
+        document.getElementById('signChallengeButton').style.backgroundColor = color;
+        if (color === 'grey') {
+            document.getElementById('signChallengeButton').disabled = true;
+        } else {
+            document.getElementById('signChallengeButton').disabled = false;
+        }
+    }
+
+document.addEventListener("DOMContentLoaded", async function () {
+
+    changeButtonColor('grey');
+        try {
+            await getChallenge();
+            console.log(`Challenge fetched`);
+
+        } catch (error) {
+            console.log(`Owner error: ${error}`);
+            return false;
+        }
+
+    });
+
+document.getElementById('send').addEventListener('click', sendMessage);
+
+async function sendMessage() {
+    const messageBox = document.getElementById('message');
+    const message = messageBox.value;
+
+    if (message.trim() === '') return;
+
+    // Display the outgoing message
+    addMessageToChat(message, 'outgoing');
+    // blank the message box
+    messageBox.value = '';
+
+    handleChatMessage(message);
+}
+
+async function handleChatMessage(message) {
+    try {
+        // Show spinner
+        document.getElementById('spinner-container').style.display = 'flex';
+
+        // Send the message to the API
+        const response = await fetch(`${serverAddr}/chat/${sessionToken}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                // Include any required authentication headers as needed
+            },
+            body: JSON.stringify({ message: message })
+        });
+
+        // Get the response from the API
+        const data = await response.json();
+
+        const reply = data.chat; // Assuming the API returns a "reply" field
+
+        // Hide spinner
+        document.getElementById('spinner-container').style.display = 'none';
+
+        // Display the incoming message
+        addMessageToChat(reply, 'incoming');
+    } catch (error) {
+        // Hide spinner in case of error
+        document.getElementById('spinner-container').style.display = 'none';
+        console.error('Error communicating with the API', error);
+        addMessageToChat('Error: Unable to send message', 'incoming');
+    }
+}
+
+function addMessageToChat(text, type) {
+    const chat = document.getElementById('chat');
+    const messageDiv = document.createElement('div');
+    messageDiv.className = `message ${type}`;
+    messageDiv.textContent = text;
+    chat.appendChild(messageDiv);
+
+    // Scroll to the latest message
+    chat.scrollTop = chat.scrollHeight;
+}
+</script>

@@ -1,0 +1,130 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<ts:token xmlns:ts="http://tokenscript.org/2024/01/tokenscript"
+	xmlns:xml="http://www.w3.org/XML/1998/namespace"
+	xsi:schemaLocation="http://tokenscript.org/2024/01/tokenscript https://www.tokenscript.org/schemas/2024-01/tokenscript.xsd"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:ethereum="urn:ethereum:constantinople"
+	xmlns:xhmtl="http://www.w3.org/1999/xhtml"
+	name="AgentsOfAdvocacy">
+
+	<ts:label>
+		<ts:plurals xml:lang="en">
+			<ts:string quantity="one">Agents of Advocacy</ts:string>
+			<ts:string quantity="other">Agents of Advocacy</ts:string>
+		</ts:plurals>
+	</ts:label>
+	<ts:meta>
+        <ts:description xml:lang="en">Cross platform AI Agents with learning</ts:description>
+        <ts:aboutUrl xml:lang="en">https://viewer.smartlayer.network/?chain=84532&amp;contract=0xB7C31C0731DE35e1c2577Cde493D94ca453eA4DF</ts:aboutUrl>
+        <ts:iconUrl xml:lang="en">https://pub-17883891749c4dd484fccf6780697b62.r2.dev/metadata/0x2214739c24621d0f2d8e120a4ebd2b8ab188d5dc1db4b181535706779a1a239d.jpg</ts:iconUrl>
+    </ts:meta>
+
+	<ts:contract interface="erc721" name="thistoken">
+		<ts:address network="84532">0xB7C31C0731DE35e1c2577Cde493D94ca453eA4DF</ts:address>
+		<!-- <ts:address network="8453">0xB7C31C0731DE35e1c2577Cde493D94ca453eA4DF</ts:address> -->
+
+		<ts:abi>
+			<![CDATA[
+			[
+				{
+					"inputs": [],
+					"name": "getMintFee",
+					"outputs": [
+						{
+							"internalType": "uint256",
+							"name": "",
+							"type": "uint256"
+						}
+					],
+					"stateMutability": "view",
+					"type": "function"
+				}
+			]
+			]]>
+		</ts:abi>
+	</ts:contract>
+
+	<ts:contract interface="erc20" name="payToken">
+		<ts:address network="84532">0x8b0fefd94667fdd8cef52f8c1eeb5baec8d64a00</ts:address>
+		<!-- <ts:address network="8453">0xEf0b105b4F2cE61D2A7Ae62D03B1f4cB6C4fbEec</ts:address> -->
+	</ts:contract>
+
+	<ts:origins>
+		<!-- Define the contract which holds the token that the user will use -->
+		<ts:ethereum contract="thistoken" />
+	</ts:origins>
+
+	<ts:cards>
+		<ts:viewContent name="common" xmlns="http://www.w3.org/1999/xhtml"> </ts:viewContent>
+
+		<ts:card type="onboarding" name="mint" buttonClass="primary" origins="thistoken">
+			<ts:label>
+				<ts:string xml:lang="en">
+                    New Agent
+                </ts:string>
+			</ts:label>
+
+			<ts:transaction>
+				<ethereum:transaction contract="thistoken" function="mintWithToken">
+					<ts:data>
+						<ts:bytes32 local-ref="tokenHash" />
+						<ts:bytes local-ref="signature" />
+					</ts:data>
+				</ethereum:transaction>
+			</ts:transaction>
+			<ts:view xmlns="http://www.w3.org/1999/xhtml" xml:lang="en">
+				<ts:include type="html" src="./mint.html" />
+			</ts:view>
+		</ts:card>
+
+		<ts:card type="activity" name="chat" origins="thistoken">
+			<ts:label>
+				<ts:string xml:lang="en">Chat</ts:string>
+			</ts:label>
+			<ts:view xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" urlFragment="chat">
+				<ts:include type="html" src="./chat.html" />
+			</ts:view>
+		</ts:card>
+	</ts:cards>
+
+	<ts:attribute name="tokenMintFee">
+        <ts:type>
+            <ts:syntax>1.3.6.1.4.1.1466.115.121.1.36</ts:syntax>
+        </ts:type>
+        <ts:label>
+            <ts:string xml:lang="en">
+                Mint Fee
+            </ts:string>
+        </ts:label>
+        <ts:origins>
+            <ethereum:call function="getTokenMintFee" contract="thistoken" as="uint">
+                <ts:data/>
+            </ethereum:call>
+        </ts:origins>
+    </ts:attribute>
+
+	<ts:attribute name="tokenSymbol">
+        <ts:type>
+            <ts:syntax>1.3.6.1.4.1.1466.115.121.1.36</ts:syntax>
+        </ts:type>
+        <ts:label>
+            <ts:string xml:lang="en">
+                Payment Token Symbol
+            </ts:string>
+        </ts:label>
+        <ts:origins>
+            <ethereum:call function="symbol" contract="payToken" as="utf8">
+                <ts:data/>
+            </ethereum:call>
+        </ts:origins>
+    </ts:attribute>
+
+	<ts:transaction name="approvePayToken">
+		<ethereum:transaction as="uint" contract="payToken" function="approve">
+			<ts:data>
+				<ts:address ref="contractAddress_thistoken"/>
+				<ts:uint256 local-ref="approveAmt"/>
+			</ts:data>
+		</ethereum:transaction>
+	</ts:transaction>
+</ts:token>
