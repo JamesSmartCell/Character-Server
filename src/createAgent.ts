@@ -2,12 +2,13 @@ import { OpenAI } from "openai";
 import { google } from "@ai-sdk/google"
 import { generateObject } from "ai"
 import { OPENAI_API_KEY, prefillAgentProfileSchema } from "./constants";
+import { SQLiteDatabase } from "./database";
 
 const openai = new OpenAI({
     apiKey: OPENAI_API_KEY,
 });
 
-export async function generateAgentName(): Promise<string> {
+export async function generateAgentName(db: SQLiteDatabase): Promise<string> {
     // Generate an agent for a random historical figure.
     //first let's pick a random age range, which should start from 80 years ago and go back in steps of 100 years to 2500 years ago.
     //number either 0 or 1
@@ -21,16 +22,41 @@ export async function generateAgentName(): Promise<string> {
 
     const approximateAgeRange = `${approximateAge} years ago`;
 
-    const response = await openai.chat.completions.create({
-        model: "gpt-4o-mini",
-        messages: [{ role: "user", content: `Pick a random historical figure, from roughly ${approximateAgeRange} years ago. If the time exceeds 2000 years ago then you can pick any figure from history older than 2300 years ago. Pick the figure at random - it should be a different person each time this content message is called. Do not shy away from controversial figures like Karl Marx. Please just return the name of the figure in the content field, nothing else.` }],
+    //form list of names which have already been geenrated, from the database
+    const existingNames = await getExistingNames(db);
+
+    //convert list of names to a csv string
+    const existingNamesCSV = existingNames.join(",");
+
+    console.log(`existingNamesCSV: ${existingNamesCSV}`);
+
+    let nameExists: boolean = true;
+    let name: string = "";
+
+    while (nameExists) {
+        const response = await openai.chat.completions.create({
+            model: "gpt-4o-mini",
+            messages: [{ role: "user", content: `Pick a random historical figure, from roughly ${approximateAgeRange} years ago. If the time exceeds 2000 years ago then you can pick any figure from history older than 2300 years ago. Pick the figure at random - it should be a different person each time this content message is called. Do not shy away from controversial figures like Karl Marx. Please just return the name of the figure in the content field, nothing else. Do not pick any name from ${existingNamesCSV}` }],
     });
 
     if (response.choices[0].message.content) {
-        return response.choices[0].message.content;
+      name = response.choices[0].message.content;
+      if (!existingNames.includes(name)) {
+        nameExists = false;
+        return name;
+      }
     } else {
-        throw new Error("No response from OpenAI");
+      throw new Error("No response from OpenAI");
     }
+  }
+
+  return name;
+}
+
+async function getExistingNames(db: SQLiteDatabase): Promise<string[]> {
+    //get list of names from the database
+    const names = await db.getAllAgentNames();
+    return names;
 }
 
 export async function generatePrefillAgentProfile(name: string) {
@@ -84,31 +110,6 @@ Notes:
 }
 
 export function convertToAgentJson(agentData: any, originalName: string): JSON {
-  //structure of agent JSON is as follows:
-  /*
-  name: string
-  clients: string[]
-  modelProvider: string
-  settings: {
-    voice: {
-      model: string
-    }
-  }
-  plugins: string[]
-  bio: string[]
-  lore: string[]
-  knowledge: string[]
-  messageExamples: string[][]
-  postExamples: string[]
-  topics: string[]
-  style: {
-    all: string[]
-    chat: string[]
-    post: string[]
-  }
-  adjectives: string[]
-  */
-
  const modelProviders = ["openai", "google"];
  const modelProvider = modelProviders[Math.floor(Math.random() * modelProviders.length)];
 

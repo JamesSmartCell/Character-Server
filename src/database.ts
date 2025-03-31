@@ -143,4 +143,11 @@ export class SQLiteDatabase {
         const stmt = this.db.prepare('SELECT name, token_id FROM characters');
         return stmt.all();
     }
+
+    //function to get all agent names from the database
+    async getAllAgentNames() {
+        const stmt = this.db.prepare('SELECT name FROM characters');
+        //return array of names
+        return stmt.all().map((row: any) => row.name);
+    }
 }

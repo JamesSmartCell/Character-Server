@@ -102,7 +102,7 @@ async function createServer() {
   });
 
   app.get("/genagent", async (request, reply) => {
-    const name = await generateAgentName();
+    const name = await generateAgentName(db);
     consoleLog("name", name);
     const agentData = await generatePrefillAgentProfile(name);
     consoleLog("agentData", JSON.stringify(agentData));
@@ -361,7 +361,7 @@ async function createServer() {
 
     consoleLog("tokenIdHash", thisImage.tokenHash);
     // 1. Pick a random historical figure.
-    const name = await generateAgentName();
+    const name = await generateAgentName(db);
     // 2. Generate the Agent JSON
     const agentData = await generatePrefillAgentProfile(name);
     const agentJson = convertToAgentJson(agentData, name);
