@@ -28,6 +28,7 @@ contract AgentToken is
 
     uint256 private _tokenMintFee;
     address private _paymentTokenAddress;
+    address private _signerAddress;
 
     event Minted(address indexed to, uint256 indexed tokenId);
     event MintDerivative(
@@ -39,6 +40,7 @@ contract AgentToken is
     event DerivativeLimitUpdated(uint256 newLimit);
     event TokenMintFeeUpdated(uint256 newFee);
     event PaymentTokenAddressUpdated(address newAddress);
+    event SignerAddressUpdated(address newAddress);
 
     function initialize(
         string memory name,
@@ -70,6 +72,11 @@ contract AgentToken is
         _tokenMintFee = fee;
     }
 
+    function setSignerAddress(address signerAddress) public onlyOwner {
+        emit SignerAddressUpdated(signerAddress);
+        _signerAddress = signerAddress;
+    }
+
     function setPaymentTokenAddress(address tokenAddress) public onlyOwner {
         emit PaymentTokenAddressUpdated(tokenAddress);
         _paymentTokenAddress = tokenAddress;
@@ -99,8 +106,11 @@ contract AgentToken is
         // Note: We reserve the ability for a 'paymaster' to be able to mint the tokens.
         // This means there's no check to ensure that the msg.sender is the recipient
 
+        //check if the recovered address is the signer address
+        require(recoveredAddress == _signerAddress, "Invalid signature");
+
         // Mint to the recovered address using the tokenHash and signature
-        _safeMint(recoveredAddress, _currentTokenId);
+        _safeMint(msg.sender, _currentTokenId);
         _mintHashes[tokenHash] = _currentTokenId;
         _tokenIdToHash[_currentTokenId] = tokenHash;
         return _currentTokenId++;
@@ -186,5 +196,5 @@ contract AgentToken is
         string[] memory
     ) internal virtual override onlyOwner {}
 
-    uint256[48] private __gap;
+    uint256[47] private __gap;
 }

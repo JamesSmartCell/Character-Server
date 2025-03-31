@@ -2,6 +2,8 @@ import dotenv from "dotenv";
 import { ethers } from "hardhat";
 import { getContractAddress } from '@ethersproject/address';
 import hre from "hardhat";
+import { hashMessage } from "ethers/lib.commonjs/hash/message";
+import { SignatureLike } from "ethers";
 const { upgrades } = require("hardhat");
 
 dotenv.config();
@@ -13,7 +15,7 @@ const aiHoleskyTokenAddress = "0x203Ea32130251f4A2391291425166a4AD87ECfB7";
 const aiHoleskyDeploymentAddress = "0x203Ea32130251f4A2391291425166a4AD87ECfB7";
 
 const aiBaseSepoliaTokenAddress = "0x8b0fefd94667fdd8cef52f8c1eeb5baec8d64a00";
-const aiBaseSepoliaDeploymentAddress = "0xB7C31C0731DE35e1c2577Cde493D94ca453eA4DF";
+const aiBaseSepoliaDeploymentAddress = "0x0D8Df2b4fffA60E342ed6bE6501C6453FF770486";
 
 // Helper script to re-assign ownership of ENS domain to the registry contract
 async function main() {
@@ -61,6 +63,10 @@ async function main() {
 
     //connect to the existing contract
     const aiToken = AIToken.attach(contractAddress);
+
+    //set signer address
+    //await aiToken.connect(primaryDeployKey).setSignerAddress("0x5AD23773ADB6f81dC98722F70077f815af77Cc60");
+
 
 
     //upgrade the contract
