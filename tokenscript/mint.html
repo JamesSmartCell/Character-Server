@@ -227,7 +227,6 @@
 
     //<span class="tooltip">Copy to clipboard</span>
     //onst serverAddr = `http://192.168.50.206:8081`;
-    //const serverAddr = `https://3-88-107-72.sslip.io:8443`;
     const serverAddr = `https://40-76-112-104.sslip.io:8081`;
     const createButton = document.getElementById('create-button');
     const paymentTokenAddress = chainID === "84532" ? "0x8b0fefd94667fdd8cef52f8c1eeb5baec8d64a00" : "0xEf0b105b4F2cE61D2A7Ae62D03B1f4cB6C4fbEec";
@@ -251,7 +250,7 @@
             chainId: Number(chainID),
             name: 'anychain'
         });
-        
+
         // Listen for network changes using the provider's network event
         provider.on('network', async (newNetwork, oldNetwork) => {
             console.log('Network changed from:', oldNetwork?.name, 'to:', newNetwork.name);
@@ -264,6 +263,84 @@
             name: 'anychain'
         });
         readProvider = provider;
+    }
+
+    async function initializeProviders() {
+        if (typeof window.ethereum !== 'undefined') {
+            // First request account access
+            await window.ethereum.request({ method: 'eth_requestAccounts' });
+
+            // Define chain parameters
+            const chainParams = {
+                chainId: `0x${Number(chainID).toString(16)}`, // Convert to hex string with 0x prefix
+                chainName: 'Base Sepolia', // or whatever network we're using
+                nativeCurrency: {
+                    name: 'ETH',
+                    symbol: 'ETH',
+                    decimals: 18
+                },
+                rpcUrls: [rpcURL],
+                blockExplorerUrls: ['https://sepolia.basescan.org/']
+            };
+
+            try {
+                // Get current chain ID
+                const currentChainId = await window.ethereum.request({ method: 'eth_chainId' });
+
+                // If we're not on the correct chain, switch to it
+                if (currentChainId !== chainParams.chainId) {
+                    try {
+                        await window.ethereum.request({
+                            method: 'wallet_switchEthereumChain',
+                            params: [{ chainId: chainParams.chainId }],
+                        });
+                    } catch (switchError) {
+                        // If the chain is not added, add it
+                        if (switchError.code === 4902) {
+                            await window.ethereum.request({
+                                method: 'wallet_addEthereumChain',
+                                params: [chainParams],
+                            });
+                            // After adding, try switching again
+                            await window.ethereum.request({
+                                method: 'wallet_switchEthereumChain',
+                                params: [{ chainId: chainParams.chainId }],
+                            });
+                        } else {
+                            throw switchError;
+                        }
+                    }
+                }
+            } catch (error) {
+                console.error('Error switching network:', error);
+                throw error;
+            }
+
+            provider = new ethers.BrowserProvider(window.ethereum);
+            // Listen for network changes using the provider's network event
+            provider.on('network', async (newNetwork, oldNetwork) => {
+                console.log('Network changed from:', oldNetwork?.name, 'to:', newNetwork.name);
+                // If network changes unexpectedly, try to switch back
+                if (newNetwork.chainId !== Number(chainID)) {
+                    try {
+                        await window.ethereum.request({
+                            method: 'wallet_switchEthereumChain',
+                            params: [{ chainId: chainParams.chainId }],
+                        });
+                    } catch (error) {
+                        console.error('Error switching back to correct network:', error);
+                    }
+                }
+            });
+        } else {
+            provider = new ethers.JsonRpcProvider(rpcURL, {
+                chainId: Number(chainID),
+                name: 'anychain'
+            });
+        }
+
+        // Get the signer
+        signer = await provider.getSigner();
     }
 
     // Function to initialize contracts
@@ -320,7 +397,7 @@
             const data = await response.json();
             //console.log(`DATA: ${JSON.stringify(data)}`);
             //console.log(`DATA: ${data.data.hash}`);
-            
+
             if (!data || !data.data.hash) {
                 document.getElementById('status').innerHTML = `Error: Server offline; unable to proceed ...`;
                 throw new Error('Network response was not ok');
@@ -362,6 +439,8 @@
 
     async function getChallenge() {
         try {
+
+            await initializeProviders();
 
             fetch(`${serverAddr}/challenge`)
                 .then(handleErrors)

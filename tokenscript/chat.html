@@ -118,115 +118,208 @@ const serverAddr = `https://40-76-112-104.sslip.io:8081`;
 //const serverAddr = `http://192.168.50.206:8081`;
 let sessionToken = "";
 
-    function handleErrors(response) {
-        if (!response.ok) {
-            throw Error(response.statusText);
-        }
-        return response.text();
-    }
+let provider;
+let signer;
 
-    let currentChallenge = "";
+// Initialize providers and signer
+async function initializeProviders() {
+    if (typeof window.ethereum !== 'undefined') {
+        // First request account access
+        await window.ethereum.request({ method: 'eth_requestAccounts' });
+        
+        // Define chain parameters
+        const chainParams = {
+            chainId: `0x${Number(chainID).toString(16)}`, // Convert to hex string with 0x prefix
+            chainName: 'Base Sepolia', // or whatever network we're using
+            nativeCurrency: {
+                name: 'ETH',
+                symbol: 'ETH',
+                decimals: 18
+            },
+            rpcUrls: [rpcURL],
+            blockExplorerUrls: ['https://sepolia.basescan.org/']
+        };
 
-    function onSignChallengeClick() {
-        console.log("CLICK!");
-        if (currentChallenge.length == 0) {
-            return;
-        }
-
-        web3.personal.sign({ data: challenge }, function (error, value) {
-            if (error != null) {
-                document.getElementById('challenge').innerHTML = error
-            }
-            else {
-
-                document.getElementById('challenge').innerHTML = 'Verifying credentials ...'
-
-                const payload = {
-                    signature: value,
-                    tokenId: currentTokenInstance.tokenId.toString(),
-                    chainId: currentTokenInstance.chainId.toString(),
-                    contract: currentTokenInstance.contractAddress
-                };
-
-                fetch(`${serverAddr}/verify`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(payload)
-                })
-                    .then(response => {
-                        if (!response.ok) {
-                            // tell user they are not verified
-                            document.getElementById('challenge').innerHTML = 'You are not the owner of this token';
-                            throw new Error('Network response was not ok');
-                        }
-                        return response.json();
-                    })
-                    .then(data => {
-                        console.log(`FEED ${JSON.stringify(data)} ${data}`);
-                        console.log('Success:', data);
-                        console.log(`PASS: ${data.data} TOKEN: ${data.token}`);
-                        document.getElementById('verify').style.display = 'none';
-                        document.getElementById('input-area').style.display = 'flex';
-                        sessionToken = data.token;
-                        handleChatMessage("Hello, who are you and what is it you did? What kind of questions can you answer?");
-                    })
-                    .catch(error => {
-                        console.error('Error:', error);
+        try {
+            // Get current chain ID
+            const currentChainId = await window.ethereum.request({ method: 'eth_chainId' });
+            
+            // If we're not on the correct chain, switch to it
+            if (currentChainId !== chainParams.chainId) {
+                try {
+                    await window.ethereum.request({
+                        method: 'wallet_switchEthereumChain',
+                        params: [{ chainId: chainParams.chainId }],
                     });
+                } catch (switchError) {
+                    // If the chain is not added, add it
+                    if (switchError.code === 4902) {
+                        await window.ethereum.request({
+                            method: 'wallet_addEthereumChain',
+                            params: [chainParams],
+                        });
+                        // After adding, try switching again
+                        await window.ethereum.request({
+                            method: 'wallet_switchEthereumChain',
+                            params: [{ chainId: chainParams.chainId }],
+                        });
+                    } else {
+                        throw switchError;
+                    }
+                }
             }
+        } catch (error) {
+            console.error('Error switching network:', error);
+            throw error;
+        }
+        
+        provider = new ethers.BrowserProvider(window.ethereum);
+        // Listen for network changes using the provider's network event
+        provider.on('network', async (newNetwork, oldNetwork) => {
+            console.log('Network changed from:', oldNetwork?.name, 'to:', newNetwork.name);
+            // If network changes unexpectedly, try to switch back
+            if (newNetwork.chainId !== Number(chainID)) {
+                try {
+                    await window.ethereum.request({
+                        method: 'wallet_switchEthereumChain',
+                        params: [{ chainId: chainParams.chainId }],
+                    });
+                } catch (error) {
+                    console.error('Error switching back to correct network:', error);
+                }
+            }
+        });
+    } else {
+        provider = new ethers.JsonRpcProvider(rpcURL, {
+            chainId: Number(chainID),
+            name: 'anychain'
         });
     }
 
-    // Assign the click event to the button
-    document.getElementById('signChallengeButton').addEventListener('click', onSignChallengeClick);
+    // Get the signer
+    signer = await provider.getSigner();
+}
 
-    async function getChallenge() {
-        console.log(`dump: ${document.getElementById('input-area').style.display}`);
-        document.getElementById('input-area').style.display = 'none';
-        //document.getElementById('input-area').style.visibility = 'gone';
-        try {
+function handleErrors(response) {
+    if (!response.ok) {
+        throw Error(response.statusText);
+    }
+    return response.text();
+}
 
-            fetch(`${serverAddr}/challenge`)
-                .then(handleErrors)
-                .then(function (response) {
-                    const JSONData = JSON.parse(response);
-                    document.getElementById('challenge').innerHTML = `Challenge: ${JSONData.data}`;// + response.data
-                    window.challenge = JSONData.data
-                    currentChallenge = JSONData.data
-                    changeButtonColor('blue');
+let currentChallenge = "";
 
-                })
-
-        } catch (error) {
-            console.error("Error fetching listings:", error);
-            return null;
-        }
+async function onSignChallengeClick() {
+    console.log("CLICK!");
+    if (currentChallenge.length == 0) {
+        return;
     }
 
-    function changeButtonColor(color) {
-        document.getElementById('signChallengeButton').style.backgroundColor = color;
-        if (color === 'grey') {
-            document.getElementById('signChallengeButton').disabled = true;
-        } else {
-            document.getElementById('signChallengeButton').disabled = false;
+    try {
+        // Disable the button while processing
+        const button = document.getElementById('signChallengeButton');
+        button.disabled = true;
+        button.style.backgroundColor = 'grey';
+
+        await window.ethereum.request({ method: 'eth_requestAccounts' });
+
+        // Get the signature from the wallet
+        const result = await window.ethereum.request({
+            method: "personal_sign",
+            params: [currentChallenge.toString(), currentTokenInstance.ownerAddress]
+        });
+
+        console.log(`currentChallenge: ${currentChallenge}`);
+
+        console.log(`Raw signature from wallet: ${result}`);
+
+        document.getElementById('challenge').innerHTML = 'Verifying credentials ...';
+
+        const payload = {
+            signature: result,
+            tokenId: currentTokenInstance.tokenId.toString(),
+            chainId: currentTokenInstance.chainId.toString(),
+            contract: currentTokenInstance.contractAddress
+        };
+
+        const response = await fetch(`${serverAddr}/verify`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(payload)
+        });
+
+        if (!response.ok) {
+            document.getElementById('challenge').innerHTML = 'You are not the owner of this token';
+            throw new Error('Network response was not ok');
         }
+
+        const data = await response.json();
+        console.log(`FEED ${JSON.stringify(data)} ${data}`);
+        console.log('Success:', data);
+        console.log(`PASS: ${data.data} TOKEN: ${data.token}`);
+        document.getElementById('verify').style.display = 'none';
+        document.getElementById('input-area').style.display = 'flex';
+        sessionToken = data.token;
+        handleChatMessage("Hello, who are you and what is it you did? What kind of questions can you answer?");
+
+    } catch (error) {
+        console.error('Error:', error);
+        document.getElementById('challenge').innerHTML = error.message || 'Error during verification';
+        // Re-enable the button on error
+        const button = document.getElementById('signChallengeButton');
+        button.disabled = false;
+        button.style.backgroundColor = 'blue';
     }
+}
+
+// Assign the click event to the button
+document.getElementById('signChallengeButton').addEventListener('click', () => {
+    onSignChallengeClick().catch(error => {
+        console.error('Error in onSignChallengeClick:', error);
+    });
+});
+
+async function getChallenge() {
+    console.log(`dump: ${document.getElementById('input-area').style.display}`);
+    document.getElementById('input-area').style.display = 'none';
+    try {
+        fetch(`${serverAddr}/challenge`)
+            .then(handleErrors)
+            .then(function (response) {
+                const JSONData = JSON.parse(response);
+                document.getElementById('challenge').innerHTML = `Challenge: ${JSONData.data}`;
+                window.challenge = JSONData.data;
+                currentChallenge = JSONData.data;
+                changeButtonColor('blue');
+            });
+    } catch (error) {
+        console.error("Error fetching listings:", error);
+        return null;
+    }
+}
+
+function changeButtonColor(color) {
+    document.getElementById('signChallengeButton').style.backgroundColor = color;
+    if (color === 'grey') {
+        document.getElementById('signChallengeButton').disabled = true;
+    } else {
+        document.getElementById('signChallengeButton').disabled = false;
+    }
+}
 
 document.addEventListener("DOMContentLoaded", async function () {
-
     changeButtonColor('grey');
-        try {
-            await getChallenge();
-            console.log(`Challenge fetched`);
-
-        } catch (error) {
-            console.log(`Owner error: ${error}`);
-            return false;
-        }
-
-    });
+    try {
+        await initializeProviders();
+        await getChallenge();
+        console.log(`Challenge fetched`);
+    } catch (error) {
+        console.log(`Owner error: ${error}`);
+        return false;
+    }
+});
 
 document.getElementById('send').addEventListener('click', sendMessage);
 
@@ -254,7 +347,6 @@ async function handleChatMessage(message) {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                // Include any required authentication headers as needed
             },
             body: JSON.stringify({ message: message })
         });
@@ -262,7 +354,7 @@ async function handleChatMessage(message) {
         // Get the response from the API
         const data = await response.json();
 
-        const reply = data.chat; // Assuming the API returns a "reply" field
+        const reply = data.chat;
 
         // Hide spinner
         document.getElementById('spinner-container').style.display = 'none';
@@ -288,3 +380,4 @@ function addMessageToChat(text, type) {
     chat.scrollTop = chat.scrollHeight;
 }
 </script>
+</rewritten_file>
