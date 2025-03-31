@@ -10,7 +10,8 @@ import {
   ELIZA_SERVER_URL,
   ELIZA_CONTROL_URL,
   CHAIN_TO_CONTRACT,
-  IMAGES_FOLDER
+  IMAGES_FOLDER,
+  SIGNER_PRIVATE_KEY
 } from "./constants";
 
 import fs from "fs";
@@ -42,7 +43,6 @@ interface PendingImageUpdateEntry extends ChallengeEntry {
 
 interface PendingImageEntry {
   tokenHash: string;
-  prompt: string;
   derivativeId: string;
   model: number;
   chainid: string;
@@ -507,59 +507,74 @@ async function createServer() {
   // after verification, create an image using the novita Client, download the image and store locally in the images folder
   app.post('/createmint', async (request, res) => {
     // @ts-ignore
-    let { signature, prompt, derivative, style, chainId, challenge, contract } = request.body;
+    let { chainId, challenge, contract } = request.body;
 
     // verify: this string to verify is challenge + prompt + tokenid + derivative
-    consoleLog("verify", signature);
     consoleLog("challenges", challenge);
     consoleLog("contract", contract);
     consoleLog("chainId", chainId);
-    consoleLog("style", style);
-    consoleLog("prompt", prompt);
-
-    /*
-                    const payload = {
-                    signature: value,
-                    prompt,
-                    challenge: currentChallenge,
-                    chainId: chainID.toString(),
-                    derivative: "0",
-                    style: "New Agent",
-                    contract: currentTokenInstance.contractAddress
-    */
-
-    if (derivative === undefined) {
-      derivative = "0";
-    }
 
     if (contract === undefined) {
       contract = CHAIN_TO_CONTRACT[chainId] || CONTRACT_ADDRESS;
     }
 
     consoleLog(`Contract: ${chainId} ${contract}`);
+    //first check this is a valid challenge
+    const isValidChallenge = checkChallenge(challenge, request.ip);
+    if (!isValidChallenge) {
+      return res.status(400).send({ error: 'Invalid challenge' });
+    }
 
-    const resolvedAddress = recoverAddress(challenge, signature, prompt);
+    //declare new signing key from SIGNER_PRIVATE_KEY
+    if (!SIGNER_PRIVATE_KEY) {
+      throw new Error("SIGNER_PRIVATE_KEY is not defined");
+    }
+    const signer = new ethers.Wallet(SIGNER_PRIVATE_KEY);
 
-    consoleLog("resolvedAddress", resolvedAddress);
+    const challengeHash = ethers.hashMessage(challenge);
+    const signatureObj = signer.signingKey.sign(challengeHash);
+    consoleLog(`signatureObj: ${JSON.stringify(signatureObj)}`);
+    const signature = ethers.Signature.from(signatureObj).serialized;
+    consoleLog(`signature: ${signature}`);
 
-    // create a token hash from the challenge + prompt
-    const tokenHash = ethers.hashMessage(challenge + prompt);
+    const resolvedAddress = ethers.verifyMessage(
+        challenge,
+        signature
+    );
+
+    consoleLog("recoveredAddress", resolvedAddress);
+
+    const tokenHash = ethers.hashMessage(challenge);
 
     consoleLog("tokenHash", tokenHash);
 
-    if (resolvedAddress.length > 0) {
-      // create entry in pendingImages array
-      consoleLog(`creating entry in pendingImages array ${tokenHash} ${prompt} ${challenge} ${chainId} ${contract}`);
-      pendingImages.push({ tokenHash, prompt, derivativeId: derivative, model: 1, timestamp: Date.now(), chainid: chainId, address: resolvedAddress, contract: contract });
-    }
-
+    consoleLog(`creating entry in pendingImages array ${tokenHash} ${challenge} ${chainId} ${contract}`);
+    pendingImages.push({ tokenHash, derivativeId: "0", model: 1, timestamp: Date.now(), chainid: chainId, address: resolvedAddress, contract: contract });
+    
     // start a timer to check if the NFT has been minted
     startMintCheck();
 
     consoleLog("returning tokenHash", tokenHash);
+    const returnObject = {
+      hash: tokenHash,
+      signature: signature
+    }
     // now return the token hash and wait for the NFT to be minted
-    return res.send({ data: `${tokenHash}` });
+    return res.send({ data: returnObject });
   });
+
+  function checkChallenge(challenge: string, ip: string): boolean {
+    //check if the challenge is in the challenges array
+    const challengeEntry = challenges.find(c => c.challenge === challenge);
+    consoleLog(`challengeEntry ${JSON.stringify(challengeEntry)} ${ip}`);
+    if (challengeEntry === undefined || challengeEntry.ip !== ip) {
+      return false;
+    } else {
+      //remove the challenge from the challenges array
+      challenges.splice(challenges.indexOf(challengeEntry), 1);
+      return true;
+    }
+  }
 
   app.get('/metadataai/:tokenId', async (request, res) => {
     // @ts-ignore
@@ -571,88 +586,6 @@ async function createServer() {
       return res.send(metadata);
     }
   });
-
-  /*app.get('/metadata/:tokenHash', async (request, res) => {
-    // @ts-ignore
-    const { tokenHash } = request.params;
-    consoleLog("metadata: ", tokenHash);
-
-    //generate the metadata for the token
-    //first get the image data:
-    const imageData = db.getImageDetails(tokenHash);
-    //pull model meta from the database
-    const modelMeta = db.getModelMetaFromTokenHash(tokenHash);
-
-    let modelName = "";
-    let samplerName = "";
-
-    if (modelMeta !== null) {
-      modelName = modelMeta.modelName;
-      samplerName = modelMeta.samplerName;
-    }
-
-    //parse the name
-    const useName = parseImageName(imageData.name);
-
-    //strip the chainId from the imageData.tokenId
-    const tokenId = imageData.tokenId.split("-")[1];
-
-    // build the metadata
-    const metadata = {
-      "name": useName,
-      "description": `Part of a collection of virtual models #${tokenId}`,
-      "image": `${CLOUDFLARE_PUBLIC_URL}/${tokenHash}.jpg`,
-      "attributes": [{ "trait_type": "Model", "value": `${modelName}` },
-      { "trait_type": "Sampler", "value": `${samplerName}` }
-      ]
-    };
-
-    res.header('Content-Type', 'application/json');
-    return res.send(metadata);
-  });*/
-
-  /*app.get('/metadatan/:tokenHash', async (request, res) => {
-    // @ts-ignore
-    const { tokenHash } = request.params;
-    consoleLog("metadatan: ", tokenHash);
-
-    try {
-
-      //generate the metadata for the token
-      //first get the image data:
-      const imageData = db.getMetadataDetails(tokenHash);
-      //pull model meta from the database
-      //const modelMeta = db.getModelMetaFromTokenHash(tokenHash);
-      console.log("imageData", imageData);
-
-      //parse the name
-      const useName = parseImageName(imageData.name);
-
-      //strip the chainId from the imageData.tokenId
-      //this.db.prepare(`INSERT INTO image_text (uid, name, prompt_text, derivative_id, token_id) VALUES (?, ?, ?, ?, ?)`).run(uid, name, bio, style, tokenId);
-      const tokenId = imageData.tokenId;
-      //create trait array from style
-      const traitArray = imageData.style.split(",");
-      const traits = [];
-      for (let i = 0; i < traitArray.length; i++) {
-        traits.push({ trait_type: `Style #${i + 1}`, value: traitArray[i].trim() });
-      }
-
-      // now create and write the metadata to the database
-      const metadata = {
-        name: useName,
-        description: imageData.bio,
-        image: `https://pub-17883891749c4dd484fccf6780697b62.r2.dev/metadata/${tokenHash}.jpg`,
-        attributes: traits
-      };
-
-      res.header('Content-Type', 'application/json');
-      return res.send(metadata);
-    } catch (error) {
-      console.error('Error generating metadata', error);
-      return res.status(500).send({ error: 'Error generating metadata' });
-    }
-  });*/
 
   app.get('/script/:scriptname', async (request, res) => {
     // @ts-ignore

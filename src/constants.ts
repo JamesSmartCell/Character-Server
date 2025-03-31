@@ -14,6 +14,7 @@ export const CLOUDFLARE_ACCESS_KEY = process.env.CLOUDFLARE_ACCESS_KEY;
 export const CLOUDFLARE_SECRET_KEY = process.env.CLOUDFLARE_SECRET_KEY;
 export const NOVITA_API_KEY = process.env.NOVITA_API_KEY;
 export const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+export const SIGNER_PRIVATE_KEY = process.env.SIGNER_PRIVATE_KEY;
 
 export const IMAGES_FOLDER = "../images";
 export const SCRIPTS_FOLDER = "../scripts";
