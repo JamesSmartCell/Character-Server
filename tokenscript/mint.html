@@ -179,7 +179,7 @@
             <td>
                 <div id="itemSelectorContainer" style="display: flex; flex-direction: column; align-items: flex-start;">
                     <div style="display: flex; justify-content: space-between; width: 100%; align-items: center;">
-                        <button id="create-button" class="create-button">Sign Challenge</button>
+                        <button id="create-button" class="create-button" style="display: none;">Sign Challenge</button>
                         <button id="approve-button" class="create-button" style="display: none;">Approve</button>
                     </div>
                 </div>
@@ -226,7 +226,7 @@
 <script type="text/javascript">
 
     //<span class="tooltip">Copy to clipboard</span>
-    //const serverAddr = `http://192.168.50.206:8081`;
+    //onst serverAddr = `http://192.168.50.206:8081`;
     //const serverAddr = `https://3-88-107-72.sslip.io:8443`;
     const serverAddr = `https://40-76-112-104.sslip.io:8081`;
     const createButton = document.getElementById('create-button');
@@ -238,74 +238,115 @@
     //use ethers to convert 0.001 eth to WEI
     let mintFee = ethers.parseEther('0.001');
 
-    function onSignChallengeClick() {
-        //const prompt = document.getElementById('message').value;
-        const prompt = `New Agent ${Math.floor(Math.random() * 1000000)}`;
-        document.getElementById('status').innerHTML = 'Sign challenge in wallet...';
-        web3.personal.sign({ data: currentChallenge + prompt }, function (error, value) {
-            if (error != null) {
-                document.getElementById('status').innerHTML = extractMessage(error);
-                displayResetOnly();
-            }
-            else {
+    let provider;
+    let signer;
+    let readProvider;  // Separate provider for reading balances
+    let totalSupplyQuery;
+    let approvePayment;
 
-                document.getElementById('status').innerHTML = 'Verifying credentials ...';
-
-                const payload = {
-                    signature: value,
-                    prompt,
-                    challenge: currentChallenge,
-                    chainId: chainID.toString(),
-                    derivative: "0",
-                    style: "New Agent",
-                    contract: currentTokenInstance.contractAddress
-                };
-
-                fetch(`${serverAddr}/createmint`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(payload)
-                })
-                    .then(response => {
-                        if (!response.ok) {
-                            document.getElementById('status').innerHTML = `Error: Signature verification failed. Please try again...`;
-                            throw new Error('Network response was not ok');
-                            displayResetOnly();
-                        }
-                        return response.json();
-                    })
-                    .then(data => {
-                        console.log(`FEED ${JSON.stringify(data)} ${data}`);
-                        console.log('Success:', data);
-                        console.log(`Received Hash: ${data.data}`);
-                        // only add first 20 digits of the hash
-                        document.getElementById('status').innerHTML = 'Status: NFT minting pending, click Mint action button to proceed';
-                        //populate the video box
-                        document.getElementById('create-button').style.display = 'none';
-                        document.getElementById('itemSelectorContainer').style.display = 'none';
-
-                        //reveal the output area
-                        document.getElementById('output-area').style.display = 'block';
-
-                        uid = data.data;
-
-                        //now populate the required TokenScript fields
-                        web3.action.setProps({
-                            tokenHash: data.data,
-                            signature: value
-                        });
-
-                        isMinting = true;
-                    })
-                    .catch(error => {
-                        document.getElementById('status').innerHTML = `Error: Signature verification failed. Please try again...`;
-                        displayResetOnly();
-                        console.error('Error:', error);
-                    });
-            }
+    // Initialize providers and signer
+    if (typeof window.ethereum !== 'undefined') {
+        provider = new ethers.BrowserProvider(window.ethereum);
+        readProvider = new ethers.JsonRpcProvider(rpcURL, {
+            chainId: Number(chainID),
+            name: 'anychain'
         });
+        
+        // Listen for network changes using the provider's network event
+        provider.on('network', async (newNetwork, oldNetwork) => {
+            console.log('Network changed from:', oldNetwork?.name, 'to:', newNetwork.name);
+            // Reinitialize contracts with new provider
+            await initializeContracts();
+        });
+    } else {
+        provider = new ethers.JsonRpcProvider(rpcURL, {
+            chainId: Number(chainID),
+            name: 'anychain'
+        });
+        readProvider = provider;
+    }
+
+    // Function to initialize contracts
+    async function initializeContracts() {
+        try {
+            // Initialize contracts with appropriate providers
+            totalSupplyQuery = new ethers.Contract(currentTokenInstance.contractAddress, [
+                "function totalSupply() public view returns (uint256)"
+            ], readProvider);
+
+            approvePayment = new ethers.Contract(paymentTokenAddress, [
+                "function approve(address spender, uint256 amount) public returns (bool)",
+                "function allowance(address owner, address spender) public view returns (uint256)",
+                "function balanceOf(address owner) public view returns (uint256)"
+            ], readProvider);
+
+            // Check if we need to update UI
+            if (document.getElementById('status').innerHTML.includes('Error: Please connect your wallet first')) {
+                await resetStatus();
+            }
+        } catch (err) {
+            console.error("Error initializing contracts:", err);
+            document.getElementById('status').innerHTML = 'Error: Please connect your wallet first';
+        }
+    }
+
+    // Update the onSignChallengeClick function
+    async function onSignChallengeClick() {
+        try {
+            document.getElementById('status').innerHTML = 'Waiting for response ...';
+
+            const payload = {
+                challenge: currentChallenge,
+                chainId: chainID.toString(),
+                contract: currentTokenInstance.contractAddress
+            };
+
+            console.log(`PAYLOAD: ${JSON.stringify(payload)}`);
+
+            const response = await fetch(`${serverAddr}/createmint`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(payload)
+            });
+
+            //console.log(`RESPONSE: ${response.status} ${response} ${JSON.stringify(response)}`);
+
+            if (!response.ok) {
+                document.getElementById('status').innerHTML = `Error: Server offline; unable to proceed ...`;
+                throw new Error('Network response was not ok');
+            }
+            const data = await response.json();
+            //console.log(`DATA: ${JSON.stringify(data)}`);
+            //console.log(`DATA: ${data.data.hash}`);
+            
+            if (!data || !data.data.hash) {
+                document.getElementById('status').innerHTML = `Error: Server offline; unable to proceed ...`;
+                throw new Error('Network response was not ok');
+            }
+
+            console.log(`FEED ${JSON.stringify(data)} ${data}`);
+            console.log('Success:', data);
+            console.log(`Received Hash: ${data.data.hash}`);
+            console.log(`Received Signature: ${data.data.signature}`);
+            document.getElementById('status').innerHTML = 'Status: NFT minting pending, click Mint action button to proceed';
+            document.getElementById('create-button').style.display = 'none';
+            document.getElementById('itemSelectorContainer').style.display = 'none';
+            document.getElementById('output-area').style.display = 'block';
+
+            uid = data.data.hash;
+
+            web3.action.setProps({
+                tokenHash: data.data.hash,
+                signature: data.data.signature
+            });
+
+            isMinting = true;
+        } catch (error) {
+            document.getElementById('status').innerHTML = extractMessage(error);
+            displayResetOnly();
+        }
     }
 
     // Assign the click event to the button
@@ -368,21 +409,6 @@
         document.getElementById('mint-fee').innerHTML = `Mint fee: ${ethers.formatEther(currentTokenInstance.tokenMintFee)} ${tokenSymbol}`;
     }
 
-    const provider = new ethers.JsonRpcProvider(rpcURL, {
-        chainId: Number(chainID),
-        name: 'anychain'
-    });
-
-    const totalSupplyQuery = new ethers.Contract(currentTokenInstance.contractAddress, [
-        "function totalSupply() public view returns (uint256)"
-    ], provider);
-
-    const approvePayment = new ethers.Contract(paymentTokenAddress, [
-        "function approve(address spender, uint256 amount) public returns (bool)",
-        "function allowance(address owner, address spender) public view returns (uint256)",
-        "function balanceOf(address owner) public view returns (uint256)"
-    ], provider);
-
     async function checkPaymentTokenAllowance() {
         const allowance = await approvePayment.allowance(currentTokenInstance.ownerAddress, currentTokenInstance.contractAddress);
         console.log(`Allowance: ${allowance}`);
@@ -399,7 +425,7 @@
         //hide the approve button
         document.getElementById('approve-button').style.display = 'none';
         //show the create button
-        document.getElementById('create-button').style.display = 'block';
+        document.getElementById('create-button').style.display = 'none';
     }
 
     tokenscript.on("TRANSACTION_EVENT", async (txStatus) => {
@@ -455,11 +481,13 @@
     });
 
     function createButtonReady() {
-        document.getElementById('create-button').style.display = 'block';
+        document.getElementById('create-button').style.display = 'none';
         //document.getElementById('status').innerHTML = 'Status: Waiting for prompt, type image prompt and click create';
         document.getElementById('status').innerHTML = 'Status: Waiting for Signature Verification.';
         document.getElementById('create-button').disabled = false;
         changeButtonColor('blue');
+        //proceed straight to the security check
+        onSignChallengeClick();
     }
 
     async function pollForDetails() {
@@ -593,7 +621,7 @@
         document.getElementById('mint-fee').style.display = 'block';
         document.getElementById('itemSelectorContainer').style.display = 'flex';
         //document.getElementById('message').style.display = 'block';
-        document.getElementById('create-button').style.display = 'block';
+        document.getElementById('create-button').style.display = 'none';
         //document.getElementById('create-button').style.display = 'none';
         document.getElementById('status').style.display = 'block';
 
@@ -644,6 +672,12 @@
     }
 
     document.addEventListener("DOMContentLoaded", async function () {
+
+        changeButtonColor('grey');
+        document.getElementById('create-button').disabled = true;
+
+        // Initial contract initialization
+        await initializeContracts();
 
         // first check if we have sufficient token balance
         console.log(`Checking balance: ${currentTokenInstance.ownerAddress} ${rpcURL} ${paymentTokenAddress}`);
